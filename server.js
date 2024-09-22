@@ -13,7 +13,7 @@ const port = process.env.PORT || 3001;
 app.use(
   cors({
     // origin: "http://localhost:3000", // Replace with your frontend's actual domain
-    origin: "https://playground-kappa-lake.vercel.app/", // Replace with your frontend's actual domain
+    origin: "https://playground-kappa-lake.vercel.app", // Replace with your frontend's actual domain
   })
 );
 
