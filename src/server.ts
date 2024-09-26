@@ -10,7 +10,9 @@ const app: Application = express();
 const PORT: number = Number(process.env.PORT) || 3001; // Use environment variable for port
 
 app.use(cors({ // Add CORS middleware
-    origin: "http://localhost:3000", // Replace with your frontend's actual domain
+    origin: process.env.NODE_ENV === 'production'
+        ? "https://playground-kappa-lake.vercel.app"
+        : "http://localhost:3000", // Use localhost for local development
 }));
 
 app.use(express.json());
