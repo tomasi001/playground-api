@@ -3,11 +3,11 @@ import dotenv from 'dotenv';
 import { Request, Response } from "express";
 import OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
+import pLimit from 'p-limit'; // Import p-limit
 import {
     ArchitectureSchema,
     BusinessCaseSchema,
     BusinessModelCanvasSchema,
-    CoreFeatureWrapper,
     CoreFeatureWrapperSchema,
     DefinedSchemas,
     DiscoveryWorkshopsSchema,
@@ -21,12 +21,11 @@ import {
     ScalabilityAndPerformanceSchema,
     SecurityConsiderationsSchema,
     SWOTAnalysisSchema,
-    TechStackRecommendationWrapper,
     TechStackRecommendationWrapperSchema,
-    UserStoryWrapper,
     UserStoryWrapperSchema,
     validateResponse
 } from "../utils/validateResponse";
+
 dotenv.config();
 
 const openai = new OpenAI({
@@ -251,39 +250,51 @@ Ensure response is correctly formatted as a JSON string, with all keys and strin
 Here is the Product idea: `;
 
     try {
-        // Define prompts for each section
-        const businessCasePrompt = `${basePrompt}${prompt}`;
-        const swotAnalysisPrompt = `${basePrompt}${prompt}`;
-        const businessModelCanvasPrompt = `${basePrompt}${prompt}`;
-        const longTermStrategyPrompt = `${basePrompt}${prompt}`;
-        const discoveryWorkshopsPrompt = `${basePrompt}${prompt}`;
-        const coreFeaturesPrompt = `${basePrompt}${prompt}`;
-        const userStoriesPrompt = `${basePrompt}${prompt}`;
-        const architecturePrompt = `${basePrompt}${prompt}`;
-        const techStackRecommendationsPrompt = `${basePrompt}${prompt}`;
-        const regulatoryCompliancePrompt = `${basePrompt}${prompt}`;
-        const riskAssessmentPrompt = `${basePrompt}${prompt}`;
-        const integrationAndInteroperabilityPrompt = `${basePrompt}${prompt}`;
-        const scalabilityAndPerformancePrompt = `${basePrompt}${prompt}`;
-        const securityConsiderationsPrompt = `${basePrompt}${prompt}`;
-        const refinedConceptPrompt = `${basePrompt}${prompt}`;
+        // Define all section prompts
+        const sections = [
+            { prompt: `${basePrompt}${prompt}`, name: "businessCase", schema: BusinessCaseSchema },
+            { prompt: `${basePrompt}${prompt}`, name: "swotAnalysis", schema: SWOTAnalysisSchema },
+            { prompt: `${basePrompt}${prompt}`, name: "businessModelCanvas", schema: BusinessModelCanvasSchema },
+            { prompt: `${basePrompt}${prompt}`, name: "longTermStrategy", schema: LongTermStrategySchema },
+            { prompt: `${basePrompt}${prompt}`, name: "discoveryWorkshops", schema: DiscoveryWorkshopsSchema },
+            { prompt: `${basePrompt}${prompt}`, name: "coreFeatures", schema: CoreFeatureWrapperSchema },
+            { prompt: `${basePrompt}${prompt}`, name: "userStories", schema: UserStoryWrapperSchema },
+            { prompt: `${basePrompt}${prompt}`, name: "architecture", schema: ArchitectureSchema },
+            { prompt: `${basePrompt}${prompt}`, name: "techStackRecommendations", schema: TechStackRecommendationWrapperSchema },
+            { prompt: `${basePrompt}${prompt}`, name: "regulatoryCompliance", schema: RegulatoryComplianceSchema },
+            { prompt: `${basePrompt}${prompt}`, name: "riskAssessment", schema: RiskAssessmentSchema },
+            { prompt: `${basePrompt}${prompt}`, name: "integrationAndInteroperability", schema: IntegrationAndInteroperabilitySchema },
+            { prompt: `${basePrompt}${prompt}`, name: "scalabilityAndPerformance", schema: ScalabilityAndPerformanceSchema },
+            { prompt: `${basePrompt}${prompt}`, name: "securityConsiderations", schema: SecurityConsiderationsSchema },
+            { prompt: `${basePrompt}${prompt}`, name: "refinedConcept", schema: RefinedConceptSchema },
+        ];
 
-        // Fetch sections sequentially with their respective schemas
-        const businessCase = await fetchSection(businessCasePrompt, "businessCase", BusinessCaseSchema);
-        const swotAnalysis = await fetchSection(swotAnalysisPrompt, "swotAnalysis", SWOTAnalysisSchema);
-        const businessModelCanvas = await fetchSection(businessModelCanvasPrompt, "businessModelCanvas", BusinessModelCanvasSchema);
-        const longTermStrategy = await fetchSection(longTermStrategyPrompt, "longTermStrategy", LongTermStrategySchema);
-        const discoveryWorkshops = await fetchSection(discoveryWorkshopsPrompt, "discoveryWorkshops", DiscoveryWorkshopsSchema);
-        const coreFeatures = await fetchSection(coreFeaturesPrompt, "coreFeatures", CoreFeatureWrapperSchema) as CoreFeatureWrapper;
-        const userStories = await fetchSection(userStoriesPrompt, "userStories", UserStoryWrapperSchema) as UserStoryWrapper;
-        const architecture = await fetchSection(architecturePrompt, "architecture", ArchitectureSchema);
-        const techStackRecommendations = await fetchSection(techStackRecommendationsPrompt, "techStackRecommendations", TechStackRecommendationWrapperSchema) as TechStackRecommendationWrapper;
-        const regulatoryCompliance = await fetchSection(regulatoryCompliancePrompt, "regulatoryCompliance", RegulatoryComplianceSchema);
-        const riskAssessment = await fetchSection(riskAssessmentPrompt, "riskAssessment", RiskAssessmentSchema);
-        const integrationAndInteroperability = await fetchSection(integrationAndInteroperabilityPrompt, "integrationAndInteroperability", IntegrationAndInteroperabilitySchema);
-        const scalabilityAndPerformance = await fetchSection(scalabilityAndPerformancePrompt, "scalabilityAndPerformance", ScalabilityAndPerformanceSchema);
-        const securityConsiderations = await fetchSection(securityConsiderationsPrompt, "securityConsiderations", SecurityConsiderationsSchema);
-        const refinedConcept = await fetchSection(refinedConceptPrompt, "refinedConcept", RefinedConceptSchema);
+        // Set concurrency limit (e.g., 5 concurrent requests)
+        const limit = pLimit(5);
+
+        // Initiate parallel requests with controlled concurrency
+        const sectionPromises = sections.map(section =>
+            limit(() => fetchSection(section.prompt, section.name, section.schema))
+        );
+
+        // Await all sections to be fetched
+        const [
+            businessCase,
+            swotAnalysis,
+            businessModelCanvas,
+            longTermStrategy,
+            discoveryWorkshops,
+            coreFeatures,
+            userStories,
+            architecture,
+            techStackRecommendations,
+            regulatoryCompliance,
+            riskAssessment,
+            integrationAndInteroperability,
+            scalabilityAndPerformance,
+            securityConsiderations,
+            refinedConcept,
+        ] = await Promise.all(sectionPromises);
 
         // Combine sections into their respective parent objects
         const businessAnalysis: ProductAnalysis["businessAnalysis"] = {
