@@ -127,6 +127,21 @@ const TechStackRecommendationSchema = z.array(z.object({
     alternatives: z.array(z.string()),
 }));
 
+/* Core Feature Wrapper Schema */
+const CoreFeatureWrapperSchema = z.object({
+    coreFeatures: CoreFeatureSchema,
+});
+
+/* User Story Wrapper Schema */
+const UserStoryWrapperSchema = z.object({
+    userStories: UserStorySchema,
+});
+
+/* Tech Stack Recommendation Wrapper Schema */
+const TechStackRecommendationWrapperSchema = z.object({
+    techStackRecommendations: TechStackRecommendationSchema,
+});
+
 /* 18. TechnicalArchitecture Schema */
 const TechnicalArchitectureSchema = z.object({
     architecture: ArchitectureSchema,
@@ -246,6 +261,9 @@ export type SecurityConsiderations = z.infer<typeof SecurityConsiderationsSchema
 export type SystemDesign = z.infer<typeof SystemDesignSchema>;
 export type RefinedConcept = z.infer<typeof RefinedConceptSchema>;
 export type ProductAnalysis = z.infer<typeof ProductAnalysisSchema>;
+export type CoreFeatureWrapper = z.infer<typeof CoreFeatureWrapperSchema>;
+export type UserStoryWrapper = z.infer<typeof UserStoryWrapperSchema>;
+export type TechStackRecommendationWrapper = z.infer<typeof TechStackRecommendationWrapperSchema>;
 
 /**
  * Define a union type of all allowed Zod schemas for validation.
@@ -278,7 +296,10 @@ export type DefinedSchemas =
     | typeof SecurityConsiderationsSchema
     | typeof SystemDesignSchema
     | typeof RefinedConceptSchema
-    | typeof ProductAnalysisSchema;
+    | typeof ProductAnalysisSchema
+    | typeof CoreFeatureWrapperSchema
+    | typeof UserStoryWrapperSchema
+    | typeof TechStackRecommendationWrapperSchema;
 
 /**
  * Validates the structure of the response against a provided Zod schema.
@@ -313,6 +334,6 @@ export const validateResponse = (
 };
 
 export {
-    ArchitectureSchema, BusinessAnalysisSchema, BusinessCaseSchema, BusinessModelCanvasSchema, ComplianceAndRiskSchema, ComponentSchema, CoreFeatureSchema, DiscoveryWorkshopsSchema, FinancialProjectionsSchema, IntegrationAndInteroperabilitySchema, LongTermStrategySchema, PriorityLevelSchema, ProductAnalysisSchema, ProductDefinitionSchema, RefinedConceptSchema, RegulatoryComplianceSchema, RiskAssessmentSchema, RiskSchema, RoadmapSchema, ScalabilityAndPerformanceSchema,
-    SecurityConsiderationsSchema, StrategyAndPlanningSchema, SWOTAnalysisSchema, SystemDesignSchema, TechnicalArchitectureSchema, TechStackRecommendationSchema, UserStorySchema, WorkshopTopicSchema
+    ArchitectureSchema, BusinessAnalysisSchema, BusinessCaseSchema, BusinessModelCanvasSchema, ComplianceAndRiskSchema, ComponentSchema, CoreFeatureSchema, CoreFeatureWrapperSchema, DiscoveryWorkshopsSchema, FinancialProjectionsSchema, IntegrationAndInteroperabilitySchema, LongTermStrategySchema, PriorityLevelSchema, ProductAnalysisSchema, ProductDefinitionSchema, RefinedConceptSchema, RegulatoryComplianceSchema, RiskAssessmentSchema, RiskSchema, RoadmapSchema, ScalabilityAndPerformanceSchema,
+    SecurityConsiderationsSchema, StrategyAndPlanningSchema, SWOTAnalysisSchema, SystemDesignSchema, TechnicalArchitectureSchema, TechStackRecommendationSchema, TechStackRecommendationWrapperSchema, UserStorySchema, UserStoryWrapperSchema, WorkshopTopicSchema
 };

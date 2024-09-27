@@ -1,11 +1,14 @@
-import axios, { AxiosResponse } from "axios";
 import colors from "colors";
+import dotenv from 'dotenv';
 import { Request, Response } from "express";
+import OpenAI from "openai";
+import { zodResponseFormat } from "openai/helpers/zod";
 import {
     ArchitectureSchema,
     BusinessCaseSchema,
     BusinessModelCanvasSchema,
-    CoreFeatureSchema,
+    CoreFeatureWrapper,
+    CoreFeatureWrapperSchema,
     DefinedSchemas,
     DiscoveryWorkshopsSchema,
     IntegrationAndInteroperabilitySchema,
@@ -18,13 +21,20 @@ import {
     ScalabilityAndPerformanceSchema,
     SecurityConsiderationsSchema,
     SWOTAnalysisSchema,
-    TechStackRecommendationSchema,
-    UserStorySchema,
-    validateResponse,
+    TechStackRecommendationWrapper,
+    TechStackRecommendationWrapperSchema,
+    UserStoryWrapper,
+    UserStoryWrapperSchema,
+    validateResponse
 } from "../utils/validateResponse";
+dotenv.config();
+
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY, // Ensure this is set correctly
+});
 
 /**
- * Helper function to fetch a specific section from OpenAI with retry logic and exponential backoff.
+ * Helper function to fetch a specific section from OpenAI with structured outputs.
  */
 const fetchSection = async (
     sectionPrompt: string,
@@ -34,60 +44,36 @@ const fetchSection = async (
     backoffDelay: number = 1000 // Initial backoff delay in milliseconds
 ): Promise<any> => {
     let errorMessage = "";
-    // const responseFormat = zodResponseFormat(schema, sectionName);
     while (retries > 0) {
         try {
-            const response: AxiosResponse = await axios.post(
-                "https://api.openai.com/v1/chat/completions",
-                {
-                    model: "gpt-3.5-turbo", // Ensure this model name is correct
-                    messages: [
-                        {
-                            role: "user",
-                            content: `${sectionPrompt}${errorMessage} Return only the JSON object for the ${sectionName}, starting with open curly brace and closing with closing curly brace. Do not include the key "${sectionName}" in the response. just the object`,
-                        },
-                    ],
-                    max_tokens: 1000, // Adjust as needed
-                    // responseFormat: responseFormat,
-                },
-                {
-                    headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, // Ensure the API key is set in the environment variables
+            const response = await openai.beta.chat.completions.parse({
+                model: "gpt-4o-mini", // Ensure this model name is correct
+                messages: [
+                    {
+                        role: "user",
+                        content: `${sectionPrompt}${errorMessage} Return only the JSON object for the ${sectionName}, starting with open curly brace and closing with closing curly brace. Do not include the key "${sectionName}" in the response. Just the object.`,
                     },
-                }
-            );
+                ],
+                response_format: zodResponseFormat(schema, sectionName), // Use structured output
+            });
 
-            const responseContent = response.data.choices[0].message.content;
-            console.log(colors.blue(`Response content for ${sectionName}: ${responseContent}`)); // Log the response content
+            const responseContent = response.choices[0].message.parsed;
+            console.log(colors.blue(`Response content for ${sectionName}: ${JSON.stringify(responseContent)}`)); // Log the response content
 
-            const validation = validateResponse(responseContent ?? "", schema); // Pass schema
-
+            // Validate the response content
+            const validation = validateResponse(JSON.stringify(responseContent), schema);
             if (validation.valid) {
                 console.log(colors.green(`${sectionName} validated successfully.`));
-                return JSON.parse(responseContent);
+                return responseContent; // Return the parsed response
             } else {
-                console.warn(
-                    colors.yellow(
-                        `Validation failed for ${sectionName}: ${validation.errors?.join(
-                            "; "
-                        )}`
-                    )
-                );
-                errorMessage =
-                    " The previous response was invalid. Please ensure the response adheres to the specified structure.";
+                console.warn(colors.yellow(`Validation failed for ${sectionName}: ${validation.errors?.join("; ")}`));
+                errorMessage = ` The previous response was invalid. Please ensure the response adheres to the specified structure. Errors: ${validation.errors?.join("; ")}`;
                 retries--;
-                console.log(
-                    colors.yellow(`Retries left for ${sectionName}: ${retries}`)
-                );
+                console.log(colors.yellow(`Retries left for ${sectionName}: ${retries}`));
             }
         } catch (error: any) {
             if (error.response && error.response.status === 429) {
-                console.error(
-                    colors.red(
-                        `Rate limit exceeded while fetching ${sectionName}: ${error.message}`
-                    )
-                );
+                console.error(colors.red(`Rate limit exceeded while fetching ${sectionName}: ${error.message}`));
                 if (retries > 1) {
                     console.log(colors.yellow(`Waiting for ${backoffDelay}ms before retrying...`));
                     await new Promise(res => setTimeout(res, backoffDelay));
@@ -95,11 +81,7 @@ const fetchSection = async (
                 }
                 retries--;
             } else {
-                console.error(
-                    colors.red(
-                        `Error fetching ${sectionName} from OpenAI API: ${error.message}`
-                    )
-                );
+                console.error(colors.red(`Error fetching ${sectionName} from OpenAI API: ${error.message}`));
                 throw new Error("Error communicating with OpenAI API");
             }
         }
@@ -292,10 +274,10 @@ Here is the Product idea: `;
         const businessModelCanvas = await fetchSection(businessModelCanvasPrompt, "businessModelCanvas", BusinessModelCanvasSchema);
         const longTermStrategy = await fetchSection(longTermStrategyPrompt, "longTermStrategy", LongTermStrategySchema);
         const discoveryWorkshops = await fetchSection(discoveryWorkshopsPrompt, "discoveryWorkshops", DiscoveryWorkshopsSchema);
-        const coreFeatures = await fetchSection(coreFeaturesPrompt, "coreFeatures", CoreFeatureSchema);
-        const userStories = await fetchSection(userStoriesPrompt, "userStories", UserStorySchema);
+        const coreFeatures = await fetchSection(coreFeaturesPrompt, "coreFeatures", CoreFeatureWrapperSchema) as CoreFeatureWrapper;
+        const userStories = await fetchSection(userStoriesPrompt, "userStories", UserStoryWrapperSchema) as UserStoryWrapper;
         const architecture = await fetchSection(architecturePrompt, "architecture", ArchitectureSchema);
-        const techStackRecommendations = await fetchSection(techStackRecommendationsPrompt, "techStackRecommendations", TechStackRecommendationSchema);
+        const techStackRecommendations = await fetchSection(techStackRecommendationsPrompt, "techStackRecommendations", TechStackRecommendationWrapperSchema) as TechStackRecommendationWrapper;
         const regulatoryCompliance = await fetchSection(regulatoryCompliancePrompt, "regulatoryCompliance", RegulatoryComplianceSchema);
         const riskAssessment = await fetchSection(riskAssessmentPrompt, "riskAssessment", RiskAssessmentSchema);
         const integrationAndInteroperability = await fetchSection(integrationAndInteroperabilityPrompt, "integrationAndInteroperability", IntegrationAndInteroperabilitySchema);
@@ -316,13 +298,13 @@ Here is the Product idea: `;
         };
 
         const productDefinition: ProductAnalysis["productDefinition"] = {
-            coreFeatures,
-            userStories,
+            coreFeatures: coreFeatures.coreFeatures,
+            userStories: userStories.userStories,
         };
 
         const technicalArchitecture: ProductAnalysis["technicalArchitecture"] = {
             architecture,
-            techStackRecommendations,
+            techStackRecommendations: techStackRecommendations.techStackRecommendations,
         };
 
         const complianceAndRisk: ProductAnalysis["complianceAndRisk"] = {
